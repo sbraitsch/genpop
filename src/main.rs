@@ -1,6 +1,7 @@
-use std::env;
+use std::{env, ops::Deref};
 use std::fs::File;
 use std::io::Write;
+use chrono::{Utc};
 
 fn main() -> std::io::Result<()> {
     let args: Vec<String> = env::args().collect();
@@ -12,55 +13,71 @@ fn main() -> std::io::Result<()> {
             templates.push(&args[i]);
         }
     } else {
+        println!("genpop [number of rows] [{{tablename}}{{id: i|(s[n])}}{{value: (n[b])|t|(o[opt1|opt2|opt3]|d)}}]");
+        println!("Example:\ngenpop 1000 {{crabs}}{{i}}{{n[4]}}{{e[NORTH, SOUTH]}}{{d}}");
+        println!("genpop -h for template explanations");
+
         panic!("No template provided.")
     }
 
-
     let mut script = File::create("./migration.sql")?;
     for &template in &templates {
-        let statement_end = template.find('{').unwrap();
-        let statement = &template[0..statement_end];
-        script.write_all(statement.as_bytes())?;
-        script.write(b"\n")?;
-
-        let values = &template[statement_end + 1..];
-        let token = &values.split(',');
-
-        for row_count in 1..=*rows {
-            let mut row = String::new();
-            for (i, t) in token.clone().enumerate() {
-                match i {
-                    0 => {
-                        row.push_str(&format!("(NEXTVAL('{}'),", t.strip_suffix("}").unwrap()));
-                        continue;
-                    },
-                    _ => {
-                        let template_index = match t.find("{") {
-                            Some(index) => index as usize,
-                            None => {
-                                row.push_str(t);
-                                row.push_str(",");
-                                continue;
+        let token = &template.split('{');
+        let mut values: Vec<(&str, Option<String>)> = Vec::new();
+        for (i, t) in token.clone().enumerate() {
+            match i {
+                0 => {
+                    continue;
+                },
+                1 => {
+                    values.push( (t.strip_suffix("}").unwrap(), None));
+                },
+                _ => {
+                    match t.chars().nth(0) {
+                        Some(x) => {
+                            match x {
+                                'i' | 'd' => {values.push(("", Some(x.to_string())));},
+                                's' | 'n' | 'o' => {values.push((extract_param(t), Some(x.to_string())));},
+                                _ => panic!("Invalid template.")
                             }
-                        };
-                        let constraint = t.chars().nth(template_index + 1).unwrap();
-                        match constraint {
-                            '}' => {
-                                row.push_str(&format!("Text#{}", row_count));
-                            },
-                            'm' => {
-                                row.push_str(&((row_count + 2) % 3).to_string());
-                                row.push_str(",");
-                            }
-                            _ => {
-                                let constraint_bound = constraint.to_digit(10).unwrap();
-                                row.push_str(&((row_count + 4) % constraint_bound).to_string());
-                                row.push_str(",");
-                            }
-                        }
+                        },
+                        None => panic!("Invalid template.")
                     }
                 }
             }
+        }
+        let statement = format!("INSERT INTO {} values\n", values[0].0);
+        script.write_all(statement.as_bytes())?;
+        for row_count in 1..=*rows {
+            
+            let mut row = String::new();
+            row.push('(');
+            
+            for i in 1..values.len() {
+                match &values[i] {
+                    ("", Some(s)) => {
+                        match s.deref() {
+                            "i" => {row.push_str(&format!("{},", row_count));},
+                            "d" => {row.push_str(&format!("{},", Utc::now()));},
+                            &_ => panic!("Something went wrong. Curious.")
+
+                        }
+                    },
+                    (param, Some(s)) => {
+                        match s.deref() {
+                            "s" => {row.push_str(&format!("NEXTVAL('{}',", param));},
+                            "n" => {row.push_str(&format!("{},", ((row_count + 2) % param.parse::<u32>().unwrap())));},
+                            "o" => {
+                                let options = param.split('|').collect::<Vec<&str>>();
+                                row.push_str(&format!("{},", options[((row_count + 2) % options.len() as u32) as usize]));},
+                            &_ => panic!("Something went wrong. Curious.")
+
+                        }
+                    },
+                    (&_, _) => panic!("Something went wrong. Curious.")
+                } 
+            }
+
             row.remove(row.len() - 1);
 
             if  row_count == *rows {
@@ -73,4 +90,11 @@ fn main() -> std::io::Result<()> {
     }
 
     Ok(())
+}
+
+fn extract_param(token: &str) -> &str {
+    match token.find("[") {
+        Some(par) => token[par + 1..].strip_suffix("]}").unwrap(),
+        None => panic!("Invalid template.")
+    }
 }
