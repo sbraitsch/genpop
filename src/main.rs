@@ -1,3 +1,4 @@
+use std::process;
 use std::{env, ops::Deref};
 use std::fs::File;
 use std::io::Write;
@@ -6,7 +7,6 @@ use chrono::{Utc};
 fn main() -> std::io::Result<()> {
     let args: Vec<String> = env::args().collect();
 
-    let rows = &args[1].parse::<u32>().unwrap();
     let mut templates = Vec::new();
     if args.len() >= 2 {
         for i in 2..args.len() {
@@ -17,8 +17,10 @@ fn main() -> std::io::Result<()> {
         println!("Example:\ngenpop 1000 {{crabs}}{{i}}{{n[4]}}{{e[NORTH, SOUTH]}}{{d}}");
         println!("genpop -h for template explanations");
 
-        panic!("No template provided.")
+        process::exit(0);
     }
+
+    let rows = &args[1].parse::<u32>().unwrap();
 
     let mut script = File::create("./migration.sql")?;
     for &template in &templates {
