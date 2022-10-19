@@ -161,7 +161,7 @@ fn generate_uniques(len: u16, num: u32) -> Vec<String> {
         let mut s = String::new();
         let mut c;
         for k in 0..len {
-            let div = (i as u16) / 26_u16.pow(k.into());
+            let div = (i as u64) / 26_u64.pow(k.into());
             let offset = (div % 26) as u8;
             c = (97 + offset) as char;
             s.push(c);
