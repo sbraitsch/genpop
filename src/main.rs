@@ -29,8 +29,11 @@ fn main() -> std::io::Result<()> {
     let flag_n = "n";
     let flag_o = "o";
     let flag_d = "d";
+    let flag_u = "u";
 
+    let mut uniques:Vec<(u16, Vec<String>)> = Vec::new();
     let mut script = File::create(path)?;
+
     for &template in &templates {
         let token = &template.split('|');
         let mut values: Vec<(&str, &str)> = Vec::new();
@@ -57,6 +60,9 @@ fn main() -> std::io::Result<()> {
                                 },
                                 'd' => {
                                     values.push((flag_d, extract_param(t)));
+                                },
+                                'u' => {
+                                    values.push((flag_u, extract_param(t)));
                                 }
                                 _ => panic!("Invalid template.")
                             }
@@ -66,6 +72,22 @@ fn main() -> std::io::Result<()> {
                 }
             }
         }
+        let mut unique: Vec<String>;
+        for v in &values {
+            match v {
+                ("u", param) => {
+                    let spec = param.split(',').collect::<Vec<&str>>();
+                    let len = spec[0].parse::<u16>().unwrap();
+                    if !uniques.iter().any(|(x,_)| *x == len) {
+                        let num = spec[1].parse::<u32>().unwrap();
+                        unique = generate_uniques(len, num);
+                        uniques.push((len, unique));
+                    }
+                },
+                _ => {continue;}
+            }
+        }
+
         let statement = format!("INSERT INTO {} VALUES\n", values[0].1);
         script.write_all(statement.as_bytes())?;
         for row_count in 1..=*rows {
@@ -92,6 +114,21 @@ fn main() -> std::io::Result<()> {
                         let date_string = &format!("{}", Utc::now() - Duration::days((row_count as i64) / param.parse::<i64>().unwrap()))[0..10];
                         row.push_str(&format!("'{}',", date_string));
                     },
+                    ("u", param) => {
+                        let spec = param.split(',').collect::<Vec<&str>>();
+                        let len = spec[0].parse::<u16>().unwrap();
+                        let num = spec[1].parse::<u32>().unwrap();
+                        let unique_val;
+                        let options = &uniques.iter().find(|(x,_)| *x == len);
+
+                        match options {
+                            Some((_, y)) => {
+                                unique_val = &y[((row_count - 1) % num) as usize];
+                            },
+                            None => panic!("Something went wrong. Curious.")
+                        }
+                        row.push_str(&format!("'{}',", unique_val));
+                    },
                     (&_, &_) => panic!("Something went wrong. Curious.")
                 } 
             }
@@ -112,10 +149,26 @@ fn main() -> std::io::Result<()> {
 }
 
 fn extract_param(token: &str) -> &str {
-    match token.find("[") {
-        Some(par) => token[par + 1..].strip_suffix("]").unwrap(),
+    match token.find("(") {
+        Some(par) => token[par + 1..].strip_suffix(")").unwrap(),
         None => panic!("Invalid template.")
     }
+}
+
+fn generate_uniques(len: u16, num: u32) -> Vec<String> {
+    let mut list = Vec::new();
+    for i in 0..num {
+        let mut s = String::new();
+        let mut c;
+        for k in 0..len {
+            let div = (i as u16) / 26_u16.pow(k.into());
+            let offset = (div % 26) as u8;
+            c = (97 + offset) as char;
+            s.push(c);
+        }
+        list.push(s);
+    }
+    list
 }
 
 fn print_guide() {
