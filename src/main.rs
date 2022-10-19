@@ -66,7 +66,7 @@ fn main() -> std::io::Result<()> {
                 }
             }
         }
-        let statement = format!("INSERT INTO {} values\n", values[0].1);
+        let statement = format!("INSERT INTO {} VALUES\n", values[0].1);
         script.write_all(statement.as_bytes())?;
         for row_count in 1..=*rows {
             
@@ -82,7 +82,7 @@ fn main() -> std::io::Result<()> {
                         row.push_str(&format!("NEXTVAL('{}'),", param));
                     },
                     ("n", param) => {
-                        row.push_str(&format!("{},", &rng.gen_range(0..=param.parse::<u32>().unwrap())));
+                        row.push_str(&format!("{},", &rng.gen_range(0..param.parse::<u32>().unwrap())));
                     },
                     ("o", param) => {
                         let options = param.split(',').collect::<Vec<&str>>();
@@ -119,13 +119,15 @@ fn extract_param(token: &str) -> &str {
 }
 
 fn print_guide() {
-    let exp_gen = "genpop takes 3+ arguments, a path with filename+extension, the number of rows to generate and a variable amount of templates.\nTemplate values are separated by |.\n The first value has to be the name of the table.\nFollowing values can be one of:";
-    let exp_i = "i -> autoincrementing id, increases for every row";
-    let exp_s = "s[sequence_name] -> id taken from a preexisting sequence";
-    let exp_n = "n[upper_bound] -> random number from 0 to inclusive upper_bound";
-    let exp_o = "o[o1,o2,o3] -> one of the comma-separated options provided, rotates by given order";
-    let exp_d = "d[rows_per_day] -> datestring and how many rows with each day";
+    let exp_gen = "genpop takes 3+ arguments: a path with filename+extension, the number of rows to generate and a variable amount of templates.\nTemplate values are separated by |.\nThe first value has to be the name of the table.\nValues can be one of:";
+    let exp_i = "\ti\t\t\tautoincrementing id, starting from 1";
+    let exp_s = "\ts[sequence_name]\tautoincrementing id starting, from the sequences current value";
+    let exp_n = "\tn[upper_bound]\t\trandom number from 0 to exclusive upper_bound";
+    let exp_o = "\to[o1,o2,o3]\t\tone of the comma-separated options provided, rotates by given order";
+    let exp_d = "\td[rows_per_day]\t\tdatestring and occurrence count before decrementing";
 
     println!("{}\n{}\n{}\n{}\n{}\n{}", exp_gen, exp_i, exp_s, exp_n, exp_o, exp_d);
-    println!("Example:\ngenpop 1000 \"mytable|i|n[4]|d[3]|o[cat,mouse]\"");
+    println!("Example:\ngenpop ./migration.sql 3 \"mytable|i|n[4]|d[2]|o['CAT','MOUSE']\"");
+    println!("Output:");
+    println!("INSERT INTO mytable VALUES\n(1,3,'2022-10-19','CAT'),\n(2,0,'2022-10-19','MOUSE'),\n(3,2,'2022-10-18','CAT');")
 }
