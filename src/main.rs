@@ -24,46 +24,31 @@ fn main() -> std::io::Result<()> {
     let mut rng = rand::thread_rng();
     let rows = &args[2].parse::<u32>().unwrap();
     let path = &args[1];
-    let flag_i = "i";
-    let flag_s = "s";
-    let flag_n = "n";
-    let flag_o = "o";
-    let flag_d = "d";
-    let flag_u = "u";
 
     let mut uniques:Vec<(u16, Vec<String>)> = Vec::new();
     let mut script = File::create(path)?;
 
     for &template in &templates {
         let token = &template.split('|');
-        let mut values: Vec<(&str, &str)> = Vec::new();
+        let mut values: Vec<(String, &str)> = Vec::new();
         for (i, t) in token.clone().enumerate() {
+            let mut s = String::new();
             match i {
                 0 => {
-                    values.push( ("", t));
+                    values.push( ("".to_string(), t));
                 },
                 _ => {
                     match t.chars().nth(0) {
                         Some(x) => {
                             match x {
                                 'i' => {
-                                    values.push((flag_i, ""));
+                                    s.push(x);
+                                    values.push((s, ""));
                                 },
-                                's' => {
-                                    values.push((flag_s, extract_param(t)));
+                                's' | 'n' | 'o' | 'd' | 'u'  => {
+                                    s.push(x);
+                                    values.push((s, extract_param(t)));
                                 },
-                                'n' => {
-                                    values.push((flag_n, extract_param(t)));
-                                },
-                                'o' => {
-                                    values.push((flag_o, extract_param(t)));
-                                },
-                                'd' => {
-                                    values.push((flag_d, extract_param(t)));
-                                },
-                                'u' => {
-                                    values.push((flag_u, extract_param(t)));
-                                }
                                 _ => panic!("Invalid template.")
                             }
                         },
@@ -72,9 +57,10 @@ fn main() -> std::io::Result<()> {
                 }
             }
         }
+
         let mut unique: Vec<String>;
-        for v in &values {
-            match v {
+        for (f, p) in &values {
+            match (f.as_str(),*p) {
                 ("u", param) => {
                     let spec = param.split(',').collect::<Vec<&str>>();
                     let len = spec[0].parse::<u16>().unwrap();
@@ -95,8 +81,8 @@ fn main() -> std::io::Result<()> {
             let mut row = String::new();
             row.push('(');
             
-            for i in 1..values.len() {
-                match &values[i] {
+            for (f, p) in &values[1..] {
+                match (f.as_str(), *p) {
                     ("i", "") => {
                         row.push_str(&format!("{},", row_count));
                     },
@@ -111,7 +97,7 @@ fn main() -> std::io::Result<()> {
                         row.push_str(&format!("{},", options[(row_count % options.len() as u32) as usize]));
                     },
                     ("d", param) => {
-                        let date_string = &format!("{}", Utc::now() - Duration::days((row_count as i64) / param.parse::<i64>().unwrap()))[0..10];
+                        let date_string = &format!("{}", Utc::now() - Duration::days(((row_count - 1) as i64) / param.parse::<i64>().unwrap()))[0..10];
                         row.push_str(&format!("'{}',", date_string));
                     },
                     ("u", param) => {
@@ -129,7 +115,7 @@ fn main() -> std::io::Result<()> {
                         }
                         row.push_str(&format!("'{}',", unique_val));
                     },
-                    (&_, &_) => panic!("Something went wrong. Curious.")
+                    (_, &_) => panic!("Something went wrong. Curious.")
                 } 
             }
 
@@ -144,7 +130,7 @@ fn main() -> std::io::Result<()> {
         }
     }
     let duration = start.elapsed();
-    println!("Generated inserts for {} database entries in {:?}", (rows * (args.len() - 3) as u32), duration);
+    println!("Generated INSERT statement for {} new database rows in {:?}.", (rows * (args.len() - 3) as u32), duration);
     Ok(())
 }
 
