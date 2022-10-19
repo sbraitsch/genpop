@@ -4,6 +4,7 @@ use std::fs::File;
 use std::io::Write;
 use std::time::Instant;
 use chrono::{Utc, Duration};
+use rand::Rng;
 
 fn main() -> std::io::Result<()> {
     let start = Instant::now();
@@ -20,6 +21,7 @@ fn main() -> std::io::Result<()> {
         process::exit(0);
     }
 
+    let mut rng = rand::thread_rng();
     let rows = &args[1].parse::<u32>().unwrap();
     let flag_i = "i";
     let flag_s = "s";
@@ -79,7 +81,7 @@ fn main() -> std::io::Result<()> {
                         row.push_str(&format!("NEXTVAL('{}'),", param));
                     },
                     ("n", param) => {
-                        row.push_str(&format!("{},", ((row_count + 2) % param.parse::<u32>().unwrap())));
+                        row.push_str(&format!("{},", &rng.gen_range(0..=param.parse::<u32>().unwrap())));
                     },
                     ("o", param) => {
                         let options = param.split(',').collect::<Vec<&str>>();
@@ -116,11 +118,11 @@ fn extract_param(token: &str) -> &str {
 }
 
 fn print_guide() {
-    let exp_gen = "genpop takes 2 or more arguments. The numbe rof rows to generate and a variable amount of templates.\nTemplates values are separated by |\n First value is always the name of the table.\nFollowing values can be one of:";
+    let exp_gen = "genpop takes 2+ arguments, the number of rows to generate and a variable amount of templates.\nTemplate values are separated by |.\n The first value has to be the name of the table.\nFollowing values can be one of:";
     let exp_i = "i -> autoincrementing id, increases for every row";
     let exp_s = "s[sequence_name] -> id taken from a preexisting sequence";
-    let exp_n = "n[upper_bound] -> number from 0 to upper_bound";
-    let exp_o = "o[o1,o2,o3] -> one of the comma-separated options provided";
+    let exp_n = "n[upper_bound] -> random number from 0 to inclusive upper_bound";
+    let exp_o = "o[o1,o2,o3] -> one of the comma-separated options provided, rotates by given order";
     let exp_d = "d[rows_per_day] -> datestring and how many rows with each day";
 
     println!("{}\n{}\n{}\n{}\n{}\n{}", exp_gen, exp_i, exp_s, exp_n, exp_o, exp_d);
