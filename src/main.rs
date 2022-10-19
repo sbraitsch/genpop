@@ -107,7 +107,7 @@ fn main() -> std::io::Result<()> {
         }
     }
     let duration = start.elapsed();
-    println!("Generated inserts for {} database entries in {:?}", (rows * (args.len() - 2) as u32), duration);
+    println!("Generated inserts for {} database entries in {:?}", (rows * (args.len() - 3) as u32), duration);
     Ok(())
 }
 
