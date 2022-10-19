@@ -11,8 +11,8 @@ fn main() -> std::io::Result<()> {
     let args: Vec<String> = env::args().collect();
 
     let mut templates = Vec::new();
-    if args.len() >= 2 {
-        for i in 2..args.len() {
+    if args.len() >= 3 {
+        for i in 3..args.len() {
             templates.push(&args[i]);
         }
     } else {
@@ -22,14 +22,15 @@ fn main() -> std::io::Result<()> {
     }
 
     let mut rng = rand::thread_rng();
-    let rows = &args[1].parse::<u32>().unwrap();
+    let rows = &args[2].parse::<u32>().unwrap();
+    let path = &args[1];
     let flag_i = "i";
     let flag_s = "s";
     let flag_n = "n";
     let flag_o = "o";
     let flag_d = "d";
 
-    let mut script = File::create("./migration.sql")?;
+    let mut script = File::create(path)?;
     for &template in &templates {
         let token = &template.split('|');
         let mut values: Vec<(&str, &str)> = Vec::new();
@@ -118,7 +119,7 @@ fn extract_param(token: &str) -> &str {
 }
 
 fn print_guide() {
-    let exp_gen = "genpop takes 2+ arguments, the number of rows to generate and a variable amount of templates.\nTemplate values are separated by |.\n The first value has to be the name of the table.\nFollowing values can be one of:";
+    let exp_gen = "genpop takes 3+ arguments, a path with filename+extension, the number of rows to generate and a variable amount of templates.\nTemplate values are separated by |.\n The first value has to be the name of the table.\nFollowing values can be one of:";
     let exp_i = "i -> autoincrementing id, increases for every row";
     let exp_s = "s[sequence_name] -> id taken from a preexisting sequence";
     let exp_n = "n[upper_bound] -> random number from 0 to inclusive upper_bound";
