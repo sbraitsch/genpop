@@ -1,24 +1,33 @@
 # What this?
-genpop is a tool to generate massively long insert statements to use with e.g. flyway.
-Possible usecase would be 
+genpop is a tool to generate massively long SQL insert statements.<br>
+You could e.g. use it to generate a migration file for flyway, inserting 50000 rows of mockdata to test the behaviour of your program heavy load.
 
 # How to use it
 
-Download the repository and unzip, then run
+Install Rust.<br>
+Download the repository and unzip, then run:<br>
 ```
 cargo install --path /path/to/folder
 ```
-genpop takes 3+ arguments: a path with filename+extension, the number of rows to generate and a variable amount of template strings.
-Template values are separated by |.
-The first value is required to be the name of the table. Ignore at your own peril.
+<br>
+Command syntax:<br>
+
+```
+genpop [path+name] [rows] [template(s)]
+```
+<br>
+- Template values are separated by |<br>
+- The first value is required to be the name of the table. Ignore at your own peril<br>
 
 Supported value patterns are:
 
-i                 - autoincrementing id, starting from 1
-s[sequence_name]  - autoincrementing id starting, from the sequences current value
-n[upper_bound]    - random number from 0 to exclusive upper_bound
-o[o1,o2,o3]       - one of the comma-separated options provided, rotates by given order
-d[rows_per_day]   - datestring and occurrence count before decrementing
+| Pattern  | Definition | Example | Result |
+| ------------- | ------------- | ------------- | ------------- |
+| **i**  | **autoincrementing ID, starting from 1**  | **i** | **1<br>2<br>3<br>..**|
+| **s[sequence_name]**| **autoincrementing ID starting from the sequences current value** | **s[some_id]** | **24<br>25<br>26<br>..**|
+| **n[upper_bound]**  | **random number from 0 to exclusive upper_bound** | **n[3]** | **2<br>0<br>1<br>..** |
+| **o[o1,o2,o3]** | **one of the comma-separated options provided, rotates by given order** | **o['NA','EU']** | **'NA'<br>'EU'<br>'NA'<br>..**|
+| **d[rows_per_day]** | **datestring and occurrence count before decrementing** | **d[2]** | **'2022-01-02'<br>'2022-01-02'<br>'2022-01-01'<br>..**|
 
 For example:
 ```
