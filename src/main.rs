@@ -159,10 +159,10 @@ fn generate_uniques(len: u16, num: u32) -> Vec<String> {
 
 fn print_guide() {
     let mut guide = String::new();
-    guide.push_str("Command syntax: genpop [path+name] [rows] [template(s)]*\n");
+    guide.push_str("\nCommand syntax: genpop [path+name] [rows] [template(s)]*\n");
     guide.push_str("\t- Template values are separated by |\n");
     guide.push_str("\t- The first value is required to be the name of the table\n");
-    guide.push_str("Valid value types are:\n\n");
+    guide.push_str("\nValid value types are:\n\n");
 
     guide.push_str("\ti\t\tautoincrementing id, starting from 1\n");
     guide.push_str("\ts(x)\t\tautoincrementing id based on the current value of an existing sequence with name x\n");
@@ -172,8 +172,8 @@ fn print_guide() {
     guide.push_str("\tu(x)\t\ta unique string with length x\n");
     guide.push_str("\td(x))\t\tdatestring with x as the number of rows with each date before decrementing\n\n");
 
-    guide.push_str("Example:\ngenpop ./migration.sql 3 \"mytable|i|r(4)|d(2)|o('CAT','MOUSE')|u(3)\"");
+    guide.push_str("Example:\n\tgenpop ./migration.sql 3 \"mytable|i|r(4)|d(2)|o('CAT','MOUSE')|u(3)\"\n");
     guide.push_str("Output:\n");
-    guide.push_str("INSERT INTO mytable VALUES\n(1,3,'2022-10-19','CAT','aaa'),\n(2,0,'2022-10-19','MOUSE','baa'),\n(3,2,'2022-10-18','CAT','caa');");
+    guide.push_str("\tINSERT INTO mytable VALUES\n\t(1,3,'2022-10-19','CAT','aaa'),\n\t(2,0,'2022-10-19','MOUSE','baa'),\n\t(3,2,'2022-10-18','CAT','caa');");
     println!("{}", guide);
 }
