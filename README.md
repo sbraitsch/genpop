@@ -13,7 +13,7 @@ cargo install --path /path/to/folder
 Command syntax:<br>
 
 ```
-genpop [path+name] [rows] [template(s)]
+genpop [path+name] [rows] [template(s)]*
 ```
 <br>
 - Template values are separated by |<br>
@@ -24,19 +24,21 @@ Supported value patterns are:
 | Pattern  | Definition | Example | Result |
 | ------------- | ------------- | ------------- | ------------- |
 | **i**  | **autoincrementing ID, starting from 1**  | **i** | **1<br>2<br>3<br>..**|
-| **s[sequence_name]**| **autoincrementing ID starting from the sequences current value** | **s[some_id]** | **24<br>25<br>26<br>..**|
-| **n[upper_bound]**  | **random number from 0 to exclusive upper_bound** | **n[3]** | **2<br>0<br>1<br>..** |
-| **o[o1,o2,o3]** | **one of the comma-separated options provided, rotates by given order** | **o['NA','EU']** | **'NA'<br>'EU'<br>'NA'<br>..**|
-| **d[rows_per_day]** | **datestring and occurrence count before decrementing** | **d[2]** | **'2022-01-02'<br>'2022-01-02'<br>'2022-01-01'<br>..**|
+| **s(x)**| **autoincrementing id based on the current value of an existing sequence with name x** | **s[some_id]** | **24<br>25<br>26<br>..**|
+| **r(x)**  | **random number from 0 to x (exclusive)** | **r[3]** | **2<br>0<br>1<br>..** |
+| **n(x)**  | **number from 1 to x (inclusive). like i but resets after x** | **n[15]** | **1<br>2<br>3<br>..** |
+| **u(x)**  | **a unique string with length x** | **u[3]** | **'aaa'<br>'baa'<br>'caa'<br>..** |
+| **o(a,..,z)** | **one of the comma-separated options provided. resets to a after reaching z** | **o['NA','EU']** | **'NA'<br>'EU'<br>'NA'<br>..**|
+| **d(x)** | **datestring with x as the number of rows with each date before decrementing** | **d[2]** | **'2022-01-02'<br>'2022-01-02'<br>'2022-01-01'<br>..**|
 
 For example:
 ```
-genpop ./migration.sql 3 "mytable|i|n[4]|d[2]|o['CAT','MOUSE']"
+genpop ./migration.sql 3 "mytable|i|r(4)|d(2)]|o('CAT','MOUSE')|u(3)"
 ```
 Will generate:
 ```
 INSERT INTO mytable VALUES
-(1,3,'2022-10-19','CAT'),
-(2,0,'2022-10-19','MOUSE'),
-(3,2,'2022-10-18','CAT');
+(1,3,'2022-10-19','CAT','aaa'),
+(2,0,'2022-10-19','MOUSE','baa'),
+(3,2,'2022-10-18','CAT'),'caa';
 ```

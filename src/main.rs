@@ -45,7 +45,7 @@ fn main() -> std::io::Result<()> {
                                     s.push(x);
                                     values.push((s, ""));
                                 },
-                                's' | 'n' | 'o' | 'd' | 'u'  => {
+                                's' | 'r' | 'o' | 'd' | 'u' | 'n'  => {
                                     s.push(x);
                                     values.push((s, extract_param(t)));
                                 },
@@ -62,11 +62,9 @@ fn main() -> std::io::Result<()> {
         for (f, p) in &values {
             match (f.as_str(),*p) {
                 ("u", param) => {
-                    let spec = param.split(',').collect::<Vec<&str>>();
-                    let len = spec[0].parse::<u16>().unwrap();
+                    let len = param.parse::<u16>().unwrap();
                     if !uniques.iter().any(|(x,_)| *x == len) {
-                        let num = spec[1].parse::<u32>().unwrap();
-                        unique = generate_uniques(len, num);
+                        unique = generate_uniques(len, *rows);
                         uniques.push((len, unique));
                     }
                 },
@@ -89,8 +87,12 @@ fn main() -> std::io::Result<()> {
                     ("s", param) => {
                         row.push_str(&format!("NEXTVAL('{}'),", param));
                     },
-                    ("n", param) => {
+                    ("r", param) => {
                         row.push_str(&format!("{},", &rng.gen_range(0..param.parse::<u32>().unwrap())));
+                    },
+                    ("n", param) => {
+                        let cycle = param.parse::<u32>().unwrap();
+                        row.push_str(&format!("{},", ((row_count - 1) % cycle) + 1));
                     },
                     ("o", param) => {
                         let options = param.split(',').collect::<Vec<&str>>();
@@ -101,15 +103,13 @@ fn main() -> std::io::Result<()> {
                         row.push_str(&format!("'{}',", date_string));
                     },
                     ("u", param) => {
-                        let spec = param.split(',').collect::<Vec<&str>>();
-                        let len = spec[0].parse::<u16>().unwrap();
-                        let num = spec[1].parse::<u32>().unwrap();
+                        let len = param.parse::<u16>().unwrap();
                         let unique_val;
                         let options = &uniques.iter().find(|(x,_)| *x == len);
 
                         match options {
                             Some((_, y)) => {
-                                unique_val = &y[((row_count - 1) % num) as usize];
+                                unique_val = &y[(row_count - 1) as usize];
                             },
                             None => panic!("Something went wrong. Curious.")
                         }
@@ -158,15 +158,22 @@ fn generate_uniques(len: u16, num: u32) -> Vec<String> {
 }
 
 fn print_guide() {
-    let exp_gen = "genpop takes 3+ arguments: a path with filename+extension, the number of rows to generate and a variable amount of templates.\nTemplate values are separated by |.\nThe first value has to be the name of the table.\nValues can be one of:";
-    let exp_i = "\ti\t\t\tautoincrementing id, starting from 1";
-    let exp_s = "\ts[sequence_name]\tautoincrementing id starting, from the sequences current value";
-    let exp_n = "\tn[upper_bound]\t\trandom number from 0 to exclusive upper_bound";
-    let exp_o = "\to[o1,o2,o3]\t\tone of the comma-separated options provided, rotates by given order";
-    let exp_d = "\td[rows_per_day]\t\tdatestring and occurrence count before decrementing";
+    let mut guide = String::new();
+    guide.push_str("Command syntax: genpop [path+name] [rows] [template(s)]*\n");
+    guide.push_str("\t- Template values are separated by |\n");
+    guide.push_str("\t- The first value is required to be the name of the table\n");
+    guide.push_str("Valid value types are:\n\n");
 
-    println!("{}\n{}\n{}\n{}\n{}\n{}", exp_gen, exp_i, exp_s, exp_n, exp_o, exp_d);
-    println!("Example:\ngenpop ./migration.sql 3 \"mytable|i|n[4]|d[2]|o['CAT','MOUSE']\"");
-    println!("Output:");
-    println!("INSERT INTO mytable VALUES\n(1,3,'2022-10-19','CAT'),\n(2,0,'2022-10-19','MOUSE'),\n(3,2,'2022-10-18','CAT');")
+    guide.push_str("\ti\t\tautoincrementing id, starting from 1\n");
+    guide.push_str("\ts(x)\t\tautoincrementing id based on the current value of an existing sequence with name x\n");
+    guide.push_str("\tr(x)\t\trandom number from 0 to x (exclusive)\n");
+    guide.push_str("\tn(x)\t\tnumber from 1 to x (inclusive). like i but resets after x\n");
+    guide.push_str("\to(a,..,z)\tone of the comma-separated options provided. resets to a after reaching z\n");
+    guide.push_str("\tu(x)\t\ta unique string with length x\n");
+    guide.push_str("\td(x))\t\tdatestring with x as the number of rows with each date before decrementing\n\n");
+
+    guide.push_str("Example:\ngenpop ./migration.sql 3 \"mytable|i|r(4)|d(2)|o('CAT','MOUSE')|u(3)\"");
+    guide.push_str("Output:\n");
+    guide.push_str("INSERT INTO mytable VALUES\n(1,3,'2022-10-19','CAT','aaa'),\n(2,0,'2022-10-19','MOUSE','baa'),\n(3,2,'2022-10-18','CAT','caa');");
+    println!("{}", guide);
 }
