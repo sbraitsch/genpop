@@ -40,17 +40,8 @@ fn main() -> std::io::Result<()> {
                 _ => {
                     match t.chars().nth(0) {
                         Some(x) => {
-                            match x {
-                                'i' => {
-                                    s.push(x);
-                                    values.push((s, ""));
-                                },
-                                's' | 'r' | 'o' | 'd' | 'u' | 'n'  => {
-                                    s.push(x);
-                                    values.push((s, extract_param(t)));
-                                },
-                                _ => panic!("Invalid template.")
-                            }
+                            s.push(x);
+                            values.push((s, extract_param(t)));
                         },
                         None => panic!("Invalid template.")
                     }
@@ -81,18 +72,19 @@ fn main() -> std::io::Result<()> {
             
             for (f, p) in &values[1..] {
                 match (f.as_str(), *p) {
-                    ("i", "") => {
-                        row.push_str(&format!("{},", row_count));
+                    ("i", param) => {
+                        let bound = param.parse::<u32>().unwrap();
+                        if bound == 0 {
+                            row.push_str(&format!("{},", row_count));
+                        } else {
+                            row.push_str(&format!("{},", ((row_count - 1) % bound) + 1));
+                        }
                     },
                     ("s", param) => {
                         row.push_str(&format!("NEXTVAL('{}'),", param));
                     },
                     ("r", param) => {
                         row.push_str(&format!("{},", &rng.gen_range(0..param.parse::<u32>().unwrap())));
-                    },
-                    ("n", param) => {
-                        let cycle = param.parse::<u32>().unwrap();
-                        row.push_str(&format!("{},", ((row_count - 1) % cycle) + 1));
                     },
                     ("o", param) => {
                         let options = param.split(',').collect::<Vec<&str>>();
@@ -135,6 +127,10 @@ fn main() -> std::io::Result<()> {
 }
 
 fn extract_param(token: &str) -> &str {
+    if token.len() == 3 {
+        return "0"
+    }
+
     match token.find("(") {
         Some(par) => token[par + 1..].strip_suffix(")").unwrap(),
         None => panic!("Invalid template.")
@@ -162,17 +158,17 @@ fn print_guide() {
     guide.push_str("\nCommand syntax: genpop [path+name] [rows] [template(s)]*\n");
     guide.push_str("\t- Template values are separated by |\n");
     guide.push_str("\t- The first value is required to be the name of the table\n");
+    guide.push_str("\t- Parameter values are only omittable for i(), all others will cause a panic\n");
     guide.push_str("\nValid value types are:\n\n");
 
-    guide.push_str("\ti\t\tautoincrementing id, starting from 1\n");
-    guide.push_str("\ts(x)\t\tautoincrementing id based on the current value of an existing sequence with name x\n");
+    guide.push_str("\ti(x)\t\tnumber from 1 to x (inclusive), repeating. unbound for x=0 or no x given\n");
+    guide.push_str("\ts(x)\t\tnumber based on the current value of an existing sequence with name x\n");
     guide.push_str("\tr(x)\t\trandom number from 0 to x (exclusive)\n");
-    guide.push_str("\tn(x)\t\tnumber from 1 to x (inclusive). like i but resets after x\n");
     guide.push_str("\to(a,..,z)\tone of the comma-separated options provided. resets to a after reaching z\n");
     guide.push_str("\tu(x)\t\ta unique string with length x\n");
     guide.push_str("\td(x))\t\tdatestring with x as the number of rows with each date before decrementing\n\n");
 
-    guide.push_str("Example:\n\tgenpop ./migration.sql 3 \"mytable|i|r(4)|d(2)|o('CAT','MOUSE')|u(3)\"\n");
+    guide.push_str("Example:\n\tgenpop ./migration.sql 3 \"mytable|i()|r(4)|d(2)|o('CAT','MOUSE')|u(3)\"\n");
     guide.push_str("Output:\n");
     guide.push_str("\tINSERT INTO mytable VALUES\n\t(1,3,'2022-10-19','CAT','aaa'),\n\t(2,0,'2022-10-19','MOUSE','baa'),\n\t(3,2,'2022-10-18','CAT','caa');");
     println!("{}", guide);
